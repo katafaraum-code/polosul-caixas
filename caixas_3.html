@@ -1295,11 +1295,20 @@ function submitPedido() {
   if (payTipo === 'conta') {
     const banco = document.getElementById('f-pay-banco').value.trim();
     const nconta = document.getElementById('f-pay-conta').value.trim();
+    if (!banco || !nconta) {
+      toast('Preenche o banco e o número de conta'); return;
+    }
     payDetalhe = [banco, nconta].filter(Boolean).join(' · ');
   } else if (payTipo === 'mpesa') {
     payDetalhe = document.getElementById('f-pay-mpesa').value.trim();
+    if (!payDetalhe) {
+      toast('Preenche o número de M-Pesa'); return;
+    }
   } else if (payTipo === 'emola') {
     payDetalhe = document.getElementById('f-pay-emola').value.trim();
+    if (!payDetalhe) {
+      toast('Preenche o número de e-Mola'); return;
+    }
   }
 
   if (!dept || !desc || !valor || isNaN(valor) || !forn) {
