@@ -1095,7 +1095,15 @@ async function loadFromSheets() {
       history: buildHistory(r)
     }));
 
-    saveData(pedidos);
+    // MERGE: manter pedidos locais que ainda não chegaram à Sheet (evita desaparecerem)
+    const locais = getData();
+    const idsSheet = new Set(pedidos.map(p => p.id));
+    const locaisNaoSincronizados = locais.filter(p => !idsSheet.has(p.id));
+    // Combinar: dados da sheet + locais ainda não sincronizados
+    const combinados = [...locaisNaoSincronizados, ...pedidos];
+    // Ordenar por data (mais recente primeiro)
+    combinados.sort((a, b) => b.ts - a.ts);
+    saveData(combinados);
     render();
   } catch(e) {
     console.warn('Load falhou:', e);
@@ -1204,7 +1212,7 @@ const PASSWORDS_VALIDADOR = {
   'Valter Luís': 'valter2026',
   'Yolanda Pereira': 'yolanda2026',
 };
-const PASSWORD_DIRETOR_DEFAULT = 'diretor2026';
+const PASSWORD_DIRETOR_DEFAULT = 'ricardo2026';
 
 const NOMES_POR_ROLE = { solicitante: SOLICITANTES, validador: VALIDADORES, diretor: DIRETORES };
 const ROLE_LABELS = { solicitante: 'Solicitante', validador: 'Validador / Supervisor', diretor: 'Diretor' };
@@ -1364,7 +1372,15 @@ function entrarVendas() {
 }
 
 function getVendas() {
-  try { return JSON.parse(localStorage.getItem(VENDAS_KEY) || '{}'); } catch { return {}; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(VENDAS_KEY) || '{}');
+    // Normalizar chaves para números
+    const v = {};
+    for (let i = 0; i < 7; i++) {
+      v[i] = parseFloat(raw[i] || raw[String(i)] || 0) || 0;
+    }
+    return v;
+  } catch { return {0:0,1:0,2:0,3:0,4:0,5:0,6:0}; }
 }
 function saveVendas(v) { localStorage.setItem(VENDAS_KEY, JSON.stringify(v)); }
 
@@ -1372,7 +1388,16 @@ function setVendaDia(idx, val) {
   const v = getVendas();
   v[idx] = parseFloat(val) || 0;
   saveVendas(v);
-  renderVendas();
+  // Actualizar apenas o total, sem re-render completo (não perde foco)
+  atualizarTotalVendas();
+}
+
+function atualizarTotalVendas() {
+  const v = getVendas();
+  let total = 0;
+  for (let i = 0; i < 7; i++) total += (v[i] || 0);
+  const el = document.getElementById('vendas-total-valor');
+  if (el) el.textContent = fmtMT(total);
 }
 
 function renderVendas() {
@@ -1399,7 +1424,7 @@ function renderVendas() {
 
   html += `<tr style="background:var(--accent-light);font-weight:600">`;
   html += `<td style="padding:12px">TOTAL SEMANAL</td>`;
-  html += `<td style="padding:12px;text-align:right;font-family:var(--mono);color:var(--accent)">${fmtMT(total)}</td>`;
+  html += `<td style="padding:12px;text-align:right;font-family:var(--mono);color:var(--accent)" id="vendas-total-valor">${fmtMT(total)}</td>`;
   html += `</tr>`;
   html += '</tbody></table></div>';
 
